@@ -1,115 +1,107 @@
-import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
+import { useEffect, useState } from "react";
+import { ethers } from "ethers";
+import contractABI from "../../utils/ImmutablePoemABI.json";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+type Poem = {
+  title: string;
+  content: string;
+  author: string;
+  timestamp: bigint;
+  totalStars: bigint;
+  totalRatings: bigint;
+};
 
 export default function Home() {
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [poemId, setPoemId] = useState("");
+  const [poem, setPoem] = useState<Poem | null>(null);
+  const [rating, setRating] = useState<number>(0);
+  const [averageRating, setAverageRating] = useState<string | null>(null);
+
+  async function connectWallet() {
+    if (window.ethereum) {
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+      setWalletConnected(true);
+    }
+  }
+
+  async function publishPoem() {
+    if (!title || !content) return;
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+    const tx = await contract.publishPoem(title, content);
+    await tx.wait();
+    alert("Poem published!");
+  }
+
+  async function fetchPoem() {
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
+    const result = await contract.getPoemStruct(parseInt(poemId));
+    setPoem(result);
+
+    const avg = await contract.getAverageRating(parseInt(poemId));
+    setAverageRating(avg.toString());
+  }
+
+  async function ratePoem() {
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
+    const tx = await contract.ratePoem(parseInt(poemId), rating);
+    await tx.wait();
+    alert("Thanks for rating!");
+  }
+
   return (
-    <div
-      className={`${geistSans.className} ${geistMono.className} grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]`}
-    >
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/pages/index.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <main className="p-6 space-y-8">
+      <h1 className="text-3xl font-bold">ImmutablePoem ✍️</h1>
+
+      {!walletConnected && (
+        <button onClick={connectWallet} className="bg-blue-500 text-white px-4 py-2 rounded">
+          Connect Wallet
+        </button>
+      )}
+
+      <section>
+        <h2 className="text-xl font-semibold">Publish a Poem</h2>
+        <input type="text" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} className="block border p-2 w-full" />
+        <textarea placeholder="Content" value={content} onChange={(e) => setContent(e.target.value)} className="block border p-2 w-full mt-2" />
+        <button onClick={publishPoem} className="mt-2 bg-green-500 text-white px-4 py-2 rounded">Publish</button>
+      </section>
+
+      <section>
+        <h2 className="text-xl font-semibold">Read & Rate a Poem</h2>
+        <input type="number" placeholder="Poem ID" value={poemId} onChange={(e) => setPoemId(e.target.value)} className="block border p-2 w-full" />
+        <button onClick={fetchPoem} className="mt-2 bg-purple-500 text-white px-4 py-2 rounded">Fetch Poem</button>
+
+        {poem && (
+          <div className="mt-4 border p-4 rounded">
+            <h3 className="text-lg font-bold">{poem.title}</h3>
+            <p className="italic">by {poem.author}</p>
+            <p className="mt-2">{poem.content}</p>
+            <p className="mt-2">Average Rating: {averageRating ?? "Not rated yet"}</p>
+          </div>
+        )}
+
+        <div className="mt-4">
+          <label className="block">Rate this poem (1–5):</label>
+          <input
+            type="number"
+            min={1}
+            max={5}
+            value={rating}
+            onChange={(e) => setRating(parseInt(e.target.value))}
+            className="block border p-2 w-full max-w-xs"
+          />
+          <button onClick={ratePoem} className="mt-2 bg-yellow-500 text-white px-4 py-2 rounded">Submit Rating</button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </section>
+    </main>
   );
 }
