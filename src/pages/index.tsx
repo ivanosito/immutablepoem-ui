@@ -31,8 +31,11 @@ export default function Home() {
 
   async function publishPoem() {
     if (!title || !content) return;
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
+    //const provider = new ethers.BrowserProvider(window.ethereum);
+    //const signer = await provider.getSigner();
+    const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+    const privateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+    const signer = new ethers.Wallet(privateKey, provider);
     const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
     const tx = await contract.publishPoem(title, content);
     await tx.wait();
@@ -40,7 +43,8 @@ export default function Home() {
   }
 
   async function fetchPoem() {
-    const provider = new ethers.BrowserProvider(window.ethereum);
+    //const provider = new ethers.BrowserProvider(window.ethereum);
+    const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
     const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider);
     const result = await contract.getPoemStruct(parseInt(poemId));
     setPoem(result);
@@ -50,8 +54,11 @@ export default function Home() {
   }
 
   async function ratePoem() {
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
+    //const provider = new ethers.BrowserProvider(window.ethereum);
+    //const signer = await provider.getSigner();
+    const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+    const privateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+    const signer = new ethers.Wallet(privateKey, provider);
     const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer);
     const tx = await contract.ratePoem(parseInt(poemId), rating);
     await tx.wait();
